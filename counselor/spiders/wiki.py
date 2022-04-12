@@ -2,10 +2,11 @@
 import scrapy
 from scrapy.selector import Selector
 from items import ContentItem
-from queue import Queue
+from queue1 import Queue
 import time
 from langconv import *
 from filter_words import filter_url
+from urllib import parse
 
 def Traditional2Simplified(sentence):
     '''
@@ -43,10 +44,12 @@ class WiKiSpider(scrapy.Spider):
     urlQueue = Queue()
     name = 'wikipieda_spider'
     allowed_domains = ['zh.wikipedia.org']
-    start_urls = ['https://zh.wikipedia.org/wiki/Category:%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BC%96%E7%A8%8B']
+    start_urls = ['https://zh.wikipedia.org/wiki/Category:%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%A7%91%E5%AD%A6']
     custom_settings = {
         'ITEM_PIPELINES': {'counselor.pipelines.WikiPipeline': 800}
     }
+    f_wikipedia_tree = open('../origin_page/wikipedia_tree.txt', 'w', encoding='utf-8')
+    f_leaf_list = open('../origin_page/leaf_list.txt', 'w', encoding='utf-8')
 
     # scrapy默认启动的用于处理start_urls的方法
     def parse(self, response):
@@ -89,9 +92,15 @@ class WiKiSpider(scrapy.Spider):
         for url in candidate_lists_:
             if filter(url): # 分类请求中过滤掉一些不符合的请求（例如明显包含游戏的关键词都不要爬取）
                 continue
+            entity1 = Traditional2Simplified(parse.unquote(re.sub('[\s\S]*:','',this_url)))
             if '/wiki' in url and 'https://zh.wikipedia.org' not in url:
-                if ':' not in url or (':' in url and 'Category:' in url):
+                # if ':' not in url or (':' in url and 'Category:' in url):
+                if (':' in url and 'Category:' in url):
                     candidate_lists.append('https://zh.wikipedia.org' + url)
+                    # print(url)
+                    self.f_wikipedia_tree.write(entity1 + ' ' +  Traditional2Simplified(parse.unquote(re.sub('[\s\S]*:','',url))) + '\n')
+                if ':' not in url:
+                    self.f_leaf_list.write(entity1 + ' ' + Traditional2Simplified(parse.unquote(re.sub('[\s\S]*/wiki/','',url)))  + '\n')
         # self.start_urls = self.urlQueue.candidates
         cates_url, content_url = split(candidate_lists)
         self.urlQueue.add_has_viewd(this_url)
@@ -99,6 +108,7 @@ class WiKiSpider(scrapy.Spider):
         self.urlQueue.add_candidates(cates_url)
         print('候选请求数=', len(self.urlQueue.candidates))
         print('已处理请求数=', len(self.urlQueue.has_viewd))
+        self.urlQueue.save_has_viewd()
         # 处理完分类页面后，将所有可能的内容请求链接直接提交处理队列处理
         if len(self.urlQueue.candidates) == 0:
             # print(111111)

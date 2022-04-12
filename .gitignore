@@ -1,0 +1,5 @@
+origin_page/*
+data_process/origin_page/*
+counselor/.idea/
+counselor/__pycache__/
+counselor/spiders/__pycache__/
